@@ -8,7 +8,7 @@ from django.contrib.auth.hashers import check_password
 from django.http import HttpResponse
 from .models import User
 from .serializers import UserSerializer, UserRegistrationSerializer
-from .permissions import IsHRAdmin, IsEmployeeOrReadOnly  # Custom Permissions
+from .permissions import IsHRAdmin, IsEmployeeOrReadOnly  
 
 class UserViewSet(viewsets.ModelViewSet):
     """ViewSet for managing users with Role-Based Access Control (RBAC)"""
@@ -20,9 +20,9 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Dynamic permission handling"""
         if self.action in ['update_profile', 'current_user']:   
-            return [IsAuthenticated()]  # 🔹 Allow all authenticated users  
+            return [IsAuthenticated()]  
         elif self.action in ['create', 'delete_user', 'activate_user']:
-            return [IsHRAdmin()]  # Only HR/Admin can register, delete, or activate users
+            return [IsHRAdmin()]  
         return super().get_permissions()
 
     @action(detail=False, methods=['post'], url_path='register')
@@ -44,14 +44,14 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"error": "Email and password required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            user = User.objects.get(email=email)  # Fetch user manually
+            user = User.objects.get(email=email)  
         except User.DoesNotExist:
             return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not user.is_active:
             return Response({"error": "Your account is inactive. Please contact admin."}, status=status.HTTP_403_FORBIDDEN)
 
-        if not check_password(password, user.password):  # Check password manually
+        if not check_password(password, user.password): 
             return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
 
         refresh = RefreshToken.for_user(user)
@@ -78,7 +78,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['put'], url_path='update-profile', permission_classes=[IsAuthenticated])
     def update_profile(self, request):
         """Employees can update their own profile only"""
-        user = request.user  # Get the currently logged-in user
+        user = request.user 
         serializer = UserSerializer(user, data=request.data, partial=True)
 
         if serializer.is_valid():

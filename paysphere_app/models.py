@@ -55,7 +55,7 @@ class User(AbstractUser):
     created_by = models.CharField(max_length=100, null=True, blank=True)
     modified_by = models.CharField(max_length=100, null=True, blank=True)
 
-    # Active Status (Ensure compatibility with Django authentication)
+    # Active Status 
     is_active = models.BooleanField(default=True)
 
     # Department

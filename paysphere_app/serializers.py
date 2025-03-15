@@ -10,18 +10,18 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'first_name', 'last_name', 'email', 'phone_no', 'gender', 'dob', 'designation', 'group', 'is_active', 'password']
         extra_kwargs = {
-            'password': {'write_only': True, 'required': False},  # ✅ Password is optional in updates
-            'email': {'required': False}  # ✅ Email is optional in updates
+            'password': {'write_only': True, 'required': False},
+            'email': {'required': False}
         }
 
     def update(self, instance, validated_data):
         """Ensure password is updated correctly if provided"""
-        password = validated_data.pop('password', None)  # Extract password if provided
+        password = validated_data.pop('password', None)  
 
         for attr, value in validated_data.items():
-            setattr(instance, attr, value)  # Update other fields
+            setattr(instance, attr, value)  
 
-        if password:  # ✅ If password is provided, hash it before saving
+        if password: 
             instance.password = make_password(password)
 
         instance.save()
