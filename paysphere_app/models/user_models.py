@@ -44,10 +44,8 @@ class User(AbstractUser):
     GROUP_CHOICES = [('HR', 'HR/Admin'), ('EMPLOYEE', 'Employee')]
     group = models.CharField(max_length=10, choices=GROUP_CHOICES, default='EMPLOYEE')
 
-    # Contact Details
     phone_no = models.CharField(max_length=15, default="0000000000")
 
-    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)  
     modified_at = models.DateTimeField(auto_now=True)
 

@@ -6,9 +6,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import check_password
 from django.http import HttpResponse
-from .models import User
-from .serializers import UserSerializer, UserRegistrationSerializer
-from .permissions import IsHRAdmin, IsEmployeeOrReadOnly  
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from ..models.user_models import User
+from ..serializers import UserSerializer, UserRegistrationSerializer,UserLoginSerializer
+from ..permissions import IsHRAdmin, IsEmployeeOrReadOnly  
 
 class UserViewSet(viewsets.ModelViewSet):
     """ViewSet for managing users with Role-Based Access Control (RBAC)"""
@@ -27,7 +28,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='register')
     def register(self, request):
-        """Allow registration for new users."""
+        """Allow registration for new users with validation."""
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -36,23 +37,11 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='login', permission_classes=[])
     def login(self, request):
-        """User login with JWT authentication and proper inactive user handling."""
-        email = request.data.get("email")
-        password = request.data.get("password")
+        """User login with JWT authentication"""
+        serializer = UserLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)  
 
-        if not email or not password:
-            return Response({"error": "Email and password required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            user = User.objects.get(email=email)  
-        except User.DoesNotExist:
-            return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
-
-        if not user.is_active:
-            return Response({"error": "Your account is inactive. Please contact admin."}, status=status.HTTP_403_FORBIDDEN)
-
-        if not check_password(password, user.password): 
-            return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
+        user = serializer.validated_data["user"]  
 
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -64,23 +53,32 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='current')
     def current_user(self, request):
         """Get details of the currently logged-in user."""
-        user = request.user
-        serializer = UserSerializer(user)
+        serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['get'], url_path='get')
     def get_user(self, request, pk=None):
         """Retrieve user details by ID (Employee can view only their own details)"""
-        user = self.get_object()
-        serializer = UserSerializer(user)
-        return Response(serializer.data)
+        try:
+            user = self.get_object()
+            if request.user.group == "Employee" and request.user.id != user.id:
+                return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+            serializer = UserSerializer(user)
+            return Response(serializer.data)
+        except ObjectDoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['put'], url_path='update-profile', permission_classes=[IsAuthenticated])
     def update_profile(self, request):
-        """Employees can update their own profile only"""
+        """Employees can update their own profile but cannot modify sensitive fields"""
         user = request.user 
-        serializer = UserSerializer(user, data=request.data, partial=True)
+        restricted_fields = ["group", "is_active", "created_at", "modified_at"]
 
+        # Check if the request contains restricted fields
+        if any(field in request.data for field in restricted_fields):
+            return Response({"error": "You are not allowed to modify these fields."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
@@ -90,18 +88,28 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['delete'], url_path='deactivate')
     def deactivate_user(self, request, pk=None):
         """Soft delete (deactivate) a user (Only HR/Admin)"""
-        user = self.get_object()
-        user.is_active = False  
-        user.save()
-        return Response({"message": "User deactivated successfully"}, status=status.HTTP_204_NO_CONTENT)
+        try:
+            user = self.get_object()
+            if not request.user.has_perm("paysphere_app.change_user"):
+                return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+            user.is_active = False  
+            user.save()
+            return Response({"message": "User deactivated successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except ObjectDoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['patch'], url_path='activate')
     def activate_user(self, request, pk=None):
         """Activate a previously deactivated user (Only HR/Admin)"""
-        user = self.get_object()
-        user.is_active = True  
-        user.save()
-        return Response({"message": "User activated successfully"}, status=status.HTTP_200_OK)
+        try:
+            user = self.get_object()
+            if not request.user.has_perm("paysphere_app.change_user"):
+                return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+            user.is_active = True  
+            user.save()
+            return Response({"message": "User activated successfully"}, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 def home(request):
