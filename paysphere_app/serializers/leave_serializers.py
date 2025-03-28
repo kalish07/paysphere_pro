@@ -24,6 +24,7 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
             start_date=start_date,
             end_date=end_date
         ).exists()
+        
         if existing_leave:
             raise serializers.ValidationError("You have already applied for leave on these dates.")
 

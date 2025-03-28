@@ -10,10 +10,13 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'phone_no', 'gender', 'dob', 'designation', 'group', 'is_active', 'password']
+        fields = ['id', 'first_name', 'last_name', 'email', 'phone_no', 'gender', 'dob', 'designation', 'group', 'is_active', 'password', 'leaves_taken', 'remaining_leaves', 'total_leaves']
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
-            'email': {'required': False}
+            'email': {'required': False},
+            'leaves_taken': {'read_only': True},
+            'remaining_leaves': {'read_only': True},
+            'total_leaves': {'read_only': True}
         }
 
     def update(self, instance, validated_data):

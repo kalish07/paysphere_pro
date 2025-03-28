@@ -16,7 +16,7 @@ class LeaveRequest(models.Model):
     ]
 
     employee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="leave_requests")
-    leave_type = models.CharField(max_length=20, choices=LEAVE_TYPES, default='OTHER')
+    leave_type = models.CharField(max_length=20, choices=LEAVE_TYPES)
     start_date = models.DateField()
     end_date = models.DateField()
     reason = models.TextField()

@@ -49,21 +49,27 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)  
     modified_at = models.DateTimeField(auto_now=True)
 
-    # Audit Fields
     created_by = models.CharField(max_length=100, null=True, blank=True)
     modified_by = models.CharField(max_length=100, null=True, blank=True)
 
-    # Active Status 
     is_active = models.BooleanField(default=True)
 
-    # Department
     department = models.CharField(max_length=100, null=True, blank=True)
 
-    # Define authentication fields
+    total_leaves = models.IntegerField(default=20)
+    leaves_taken = models.IntegerField(default=0)
+    remaining_leaves = models.IntegerField(default=20, editable=False)  
+
     USERNAME_FIELD = "email"  
     REQUIRED_FIELDS = ["first_name", "last_name", "phone_no", "gender", "dob", "designation", "group"]
 
-    objects = CustomUserManager()  # Use the custom manager
+    objects = CustomUserManager()  
+
+    def save(self, *args, **kwargs):
+        if self.total_leaves < 0:
+            self.total_leaves = 0
+        self.remaining_leaves = max(self.total_leaves - self.leaves_taken, 0)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} - {self.group}"
